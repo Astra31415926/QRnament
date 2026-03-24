@@ -1,152 +1,149 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>▣ QRnament - Ornamental Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&display=swap" rel="stylesheet">
     <style>
-        body { background: #000; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-x: hidden; }
-        canvas { image-rendering: pixelated; background: #000; }
-        textarea { background: #0a0a0a; border: 1px solid #333; color: #fff; font-family: monospace; resize: none; }
-        .logo-q { color: #fff; }
-        .logo-r { color: #FF004D; }
-        .logo-g { color: #00FF41; }
-        .logo-b { color: #0088FF; }
-        .mode-switch-container { display: flex; background: #111; border-radius: 12px; padding: 4px; margin-bottom: 1rem; border: 1px solid #333; }
-        .mode-btn { flex: 1; padding: 10px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; border-radius: 8px; cursor: pointer; color: #666; transition: all 0.3s; }
-        .mode-btn.active { background: #222; color: #fff; }
-        .inputs-standard, .inputs-ornamental { display: none; }
-        .active { display: block; }
+        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; }
+        canvas { image-rendering: pixelated; }
+        .logo-r { color: #FF004D; text-shadow: 0 0 10px #FF004D; }
+        .logo-g { color: #00FF41; text-shadow: 0 0 10px #00FF41; }
+        .logo-b { color: #0088FF; text-shadow: 0 0 10px #0088FF; }
+        .scan-line { position:absolute; left:0; right:0; height:2px; background:#00ff41; box-shadow:0 0 10px #00ff41; top:0; display:none; animation: scan 2s linear infinite; }
+        @keyframes scan { 0% {top:0} 100% {top:100%} }
     </style>
 </head>
-<body class="flex flex-col min-h-screen p-6">
+<body class="flex flex-col min-h-screen p-6 max-w-md mx-auto">
 
-    <div class="flex items-center justify-between mb-6">
-        <canvas id="mini-qr" width="44" height="44" class="rounded border border-white/10"></canvas>
-        <h1 class="text-xl font-extrabold tracking-widest uppercase flex-1 flex justify-center">
-            <span class="logo-q">Q</span><span class="logo-r">R</span><span class="logo-g">G</span><span class="logo-b">B</span>
+    <header class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-black tracking-tighter uppercase">
+            <span class="text-white">QR</span><span class="logo-r">n</span><span class="logo-g">a</span><span class="logo-b">ment</span>
         </h1>
-        <button class="w-10 text-xl">☰</button>
+        <div class="text-[10px] text-zinc-500 font-bold border border-zinc-800 px-2 py-1 rounded">v1.0 AUTO-SYNC</div>
+    </header>
+
+    <div class="mb-6">
+        <textarea id="main-input" class="w-full p-4 bg-zinc-900 rounded-2xl border-l-4 border-blue-500 outline-none h-24 text-sm text-white placeholder-zinc-600" placeholder="Введите текст для создания снежинки..."></textarea>
     </div>
 
-    <div class="mode-switch-container">
-        <div id="mode-standard-btn" class="mode-btn active" onclick="setMode('standard')">Standard</div>
-        <div id="mode-ornamental-btn" class="mode-btn" onclick="setMode('ornamental')">Ornamental</div>
+    <div class="relative aspect-square w-full bg-zinc-950 rounded-3xl border border-white/5 shadow-2xl overflow-hidden mb-6">
+        <canvas id="canvas" width="512" height="512" class="w-full h-full"></canvas>
+        <video id="video" class="absolute inset-0 w-full h-full object-cover hidden" playsinline></video>
+        <div id="scan-line" class="scan-line"></div>
     </div>
 
-    <div id="inputs-standard" class="inputs-standard active space-y-3">
-        <textarea id="r-text" class="w-full p-4 rounded-xl border-l-4 border-red-600 h-14 text-sm" placeholder="RED..."></textarea>
-        <textarea id="g-text" class="w-full p-4 rounded-xl border-l-4 border-green-600 h-14 text-sm" placeholder="GREEN..."></textarea>
-        <textarea id="b-text" class="w-full p-4 rounded-xl border-l-4 border-blue-600 h-14 text-sm" placeholder="BLUE (QR)..."></textarea>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <button onclick="saveImg()" class="py-4 bg-white text-black font-black rounded-2xl text-[10px] uppercase tracking-widest">Save PNG</button>
+        <button onclick="startScan()" class="py-4 bg-zinc-900 text-white font-bold rounded-2xl border border-white/10 text-[10px] uppercase tracking-widest">Scan Cam</button>
     </div>
 
-    <div id="inputs-ornamental" class="inputs-ornamental space-y-3">
-        <textarea id="orn-text" class="w-full p-4 rounded-xl border-l-4 border-purple-600 h-14 text-sm" placeholder="Type for Snowflake QR..."></textarea>
-    </div>
-
-    <div class="flex-1 flex flex-col items-center justify-center py-6">
-        <div class="relative w-72 h-72 bg-zinc-950 border border-white/5 shadow-2xl">
-            <canvas id="qr-main" width="512" height="512" class="w-full h-full"></canvas>
-        </div>
-    </div>
-
-    <button id="save-btn" onclick="saveImage()" class="w-full py-4 bg-white text-black font-black rounded-2xl text-xs tracking-widest uppercase mb-4">Save PNG</button>
+    <p id="status" class="text-center text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Waiting for input...</p>
 
     <script>
-        const canvas = document.getElementById('qr-main');
+        const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const mini = document.getElementById('mini-qr');
-        let currentMode = 'standard';
+        const input = document.getElementById('main-input');
+        const video = document.getElementById('video');
+        const scanLine = document.getElementById('scan-line');
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('mode-standard-btn').classList.toggle('active', mode === 'standard');
-            document.getElementById('mode-ornamental-btn').classList.toggle('active', mode === 'ornamental');
-            document.getElementById('inputs-standard').classList.toggle('active', mode === 'standard');
-            document.getElementById('inputs-ornamental').classList.toggle('active', mode === 'ornamental');
-        }
-
-        function generateSnowflakeGrid(size) {
+        function generateSnowflake(size) {
             const grid = Array(size).fill(0).map(() => Array(size).fill(0));
             const center = Math.floor(size / 2);
             for (let x = 0; x <= center; x++) {
                 for (let y = 0; y <= x; y++) {
-                    const val = Math.random() < 0.5 ? 1 : 0;
-                    set8Symmetric(grid, size, center, x, y, val);
+                    if (Math.random() < 0.45) { // Плотность узора
+                        const points = [[x,y],[y,x],[-x,y],[y,-x],[-x,-y],[-y,-x],[x,-y],[-y,x]];
+                        points.forEach(([px, py]) => {
+                            const gx = center + px; const gy = center + py;
+                            if (gx >= 0 && gx < size && gy >= 0 && gy < size) grid[gy][gx] = 1;
+                        });
+                    }
                 }
             }
             return grid;
         }
 
-        function set8Symmetric(grid, size, center, x, y, val) {
-            const points = [
-                [x, y], [y, x], [-x, y], [y, -x],
-                [-x, -y], [-y, -x], [x, -y], [-y, x]
-            ];
-            points.forEach(([px, py]) => {
-                const gx = center + px;
-                const gy = center + py;
-                if (gx >= 0 && gx < size && gy >= 0 && gy < size) {
-                    grid[gy][gx] = val;
-                }
-            });
-        }
-
-        function render() {
-            const text = currentMode === 'standard' ? document.getElementById('b-text').value : document.getElementById('orn-text').value;
-            if (!text) return;
-
+        function draw() {
+            const rawText = input.value;
+            if (!rawText) return;
+            
+            // Исправление кодировки для кириллицы
+            const utf8Text = unescape(encodeURIComponent(rawText));
+            
             const qr = qrcode(0, 'M');
-            qr.addData(text);
+            qr.addData(utf8Text);
             qr.make();
+            
             const count = qr.getModuleCount();
             const modSize = 512 / count;
+            const snowR = generateSnowflake(count);
+            const snowG = generateSnowflake(count);
 
-            ctx.clearRect(0, 0, 512, 512);
+            ctx.globalCompositeOperation = "source-over";
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, 512, 512);
-
-            const snowR = generateSnowflakeGrid(count);
-            const snowG = generateSnowflakeGrid(count);
-
             ctx.globalCompositeOperation = "screen";
 
             for (let r = 0; r < count; r++) {
                 for (let c = 0; c < count; c++) {
-                    // Blue: QR
-                    if (qr.isDark(r, c)) {
-                        ctx.fillStyle = "#0000FF";
-                        ctx.fillRect(c * modSize, r * modSize, modSize, modSize);
-                    }
-                    if (currentMode === 'ornamental') {
-                        // Red: Snow 1
-                        if (snowR[r][c]) {
-                            ctx.fillStyle = "#FF0000";
-                            ctx.fillRect(c * modSize, r * modSize, modSize, modSize);
-                        }
-                        // Green: Snow 2
-                        if (snowG[r][c]) {
-                            ctx.fillStyle = "#00FF00";
-                            ctx.fillRect(c * modSize, r * modSize, modSize, modSize);
-                        }
-                    }
+                    const x = c * modSize, y = r * modSize;
+                    if (qr.isDark(r, c)) { ctx.fillStyle = "#0000FF"; ctx.fillRect(x, y, modSize, modSize); }
+                    if (snowR[r][c]) { ctx.fillStyle = "#FF0000"; ctx.fillRect(x, y, modSize, modSize); }
+                    if (snowG[r][c]) { ctx.fillStyle = "#00FF00"; ctx.fillRect(x, y, modSize, modSize); }
                 }
             }
-            mini.getContext('2d').drawImage(canvas, 0, 0, 44, 44);
+            document.getElementById('status').innerText = "Snowflake Generated (" + count + "x" + count + ")";
         }
 
-        function saveImage() {
+        async function startScan() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            video.play();
+            video.classList.remove('hidden');
+            scanLine.style.display = 'block';
+            
+            const scan = () => {
+                if (video.paused || video.ended) return;
+                ctx.drawImage(video, 0, 0, 512, 512);
+                const imgData = ctx.getImageData(0, 0, 512, 512);
+                
+                // Извлекаем только синий канал для сканера
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    const b = imgData.data[i + 2];
+                    imgData.data[i] = imgData.data[i+1] = imgData.data[i+2] = b; 
+                }
+                
+                const code = jsQR(imgData.data, 512, 512);
+                if (code) {
+                    input.value = decodeURIComponent(escape(code.data));
+                    stopScan();
+                    draw();
+                } else {
+                    requestAnimationFrame(scan);
+                }
+            };
+            scan();
+        }
+
+        function stopScan() {
+            video.srcObject.getTracks().forEach(t => t.stop());
+            video.classList.add('hidden');
+            scanLine.style.display = 'none';
+        }
+
+        function saveImg() {
             const link = document.createElement('a');
             link.download = 'QRnament.png';
             link.href = canvas.toDataURL();
             link.click();
         }
 
-        document.getElementById('orn-text').addEventListener('input', render);
-        document.getElementById('b-text').addEventListener('input', render);
+        input.addEventListener('input', draw);
     </script>
 </body>
 </html>
