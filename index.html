@@ -3,461 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>▣ QRGB ULTRA - Ornamental Engine</title>
+    <title>▣ QRnament - Ornamental Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
         body { background: #000; color: #fff; font-family: 'Inter', system-ui, sans-serif; overflow-x: hidden; }
-        canvas { image-rendering: pixelated; }
-        textarea { background: #0a0a0a; border: 1px solid #333; color: #fff; font-family: monospace; }
-        
-        /* Логотип */
-        .logo-q { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.6); }
-        .logo-r { color: #FF004D; text-shadow: 0 0 10px #FF004D; }
-        .logo-g { color: #00FF41; text-shadow: 0 0 10px #00FF41; }
-        .logo-b { color: #0088FF; text-shadow: 0 0 10px #0088FF; }
-
-        /* Анимация сканирования */
-        .scan-line { 
-            position:absolute; left:0; right:0; height:3px; 
-            background:linear-gradient(90deg,transparent,#00ff41,transparent); 
-            box-shadow:0 0 20px #00ff41; 
-            top: 0; z-index: 10;
-            display: none;
-        }
-        .scan-active .scan-line {
-            display: block;
-            animation: scanLine 2.5s linear forwards;
-        }
-        @keyframes scanLine { 0%{top:0%;} 100%{top:100%;} }
-        
-        @keyframes flash { 0%,100%{opacity:0} 50%{opacity:.9} }
-        .flash { animation:flash .3s; }
-        
-        .indicator { width: 12px; height: 12px; border-radius: 50%; background: #222; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
-        .active-r { background: #ff004d; box-shadow: 0 0 10px #ff004d; }
-        .active-g { background: #00ff41; box-shadow: 0 0 10px #00ff41; }
-        .active-b { background: #0088ff; box-shadow: 0 0 10px #0088ff; }
-        
-        /* Видео и Картинки */
-        #video { object-fit: cover; }
-        
-        /* Меню и Модалки */
-        .dropdown-menu {
-            transform: translateY(-10px);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s ease;
-        }
-        .dropdown-menu.show {
-            transform: translateY(0);
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal-overlay {
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal-content {
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-        .modal-overlay.show .modal-content {
-            transform: scale(1);
-        }
-
-        /* Переключатель языков */
-        .lang-switch {
-            display: flex;
-            gap: 2px;
-            background: #1a1a1a;
-            padding: 2px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
-        }
-        .lang-btn {
-            padding: 4px 6px;
-            border-radius: 4px;
-            cursor: pointer;
-            opacity: 0.5;
-            transition: all 0.2s;
-        }
-        .lang-btn.active {
-            opacity: 1;
-            background: #333;
-            color: #fff;
-        }
-        
-        /* Стили для ссылок в модалке */
-        .modal-content a { color: #60a5fa; text-decoration: underline; }
-        .modal-content a:hover { color: #93c5fd; }
-
-        /* === НОВЫЕ СТИЛИ (MODE SWITCH) === */
-        .mode-switch-container {
-            display: flex;
-            background: #111;
-            border-radius: 12px;
-            padding: 4px;
-            margin-bottom: 1rem;
-            border: 1px solid #333;
-        }
-        .mode-btn {
-            flex: 1;
-            padding: 10px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-radius: 8px;
-            cursor: pointer;
-            color: #666;
-            transition: all 0.3s;
-        }
-        .mode-btn.active {
-            background: #222;
-            color: #fff;
-            box-shadow: 0 0 10px rgba(255,255,255,0.05);
-        }
-        .inputs-standard, .inputs-ornamental {
-            display: none;
-        }
-        .inputs-standard.visible, .inputs-ornamental.visible {
-            display: none;
-        }
-        .inputs-ornamental.active {
-            display: block;
-        }
-        .inputs-standard.active {
-            display: block;
-        }
+        canvas { image-rendering: pixelated; background: #000; }
+        textarea { background: #0a0a0a; border: 1px solid #333; color: #fff; font-family: monospace; resize: none; }
+        .logo-q { color: #fff; }
+        .logo-r { color: #FF004D; }
+        .logo-g { color: #00FF41; }
+        .logo-b { color: #0088FF; }
+        .mode-switch-container { display: flex; background: #111; border-radius: 12px; padding: 4px; margin-bottom: 1rem; border: 1px solid #333; }
+        .mode-btn { flex: 1; padding: 10px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; border-radius: 8px; cursor: pointer; color: #666; transition: all 0.3s; }
+        .mode-btn.active { background: #222; color: #fff; }
+        .inputs-standard, .inputs-ornamental { display: none; }
+        .active { display: block; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen p-6">
 
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6 relative">
-        <canvas id="mini-qr" width="44" height="44" class="rounded bg-zinc-900 border border-white/10"></canvas>
-        
-        <!-- Логотип QRGB -->
-        <h1 class="text-xl font-extrabold tracking-widest uppercase text-center flex-1 flex justify-center gap-0.5">
+    <div class="flex items-center justify-between mb-6">
+        <canvas id="mini-qr" width="44" height="44" class="rounded border border-white/10"></canvas>
+        <h1 class="text-xl font-extrabold tracking-widest uppercase flex-1 flex justify-center">
             <span class="logo-q">Q</span><span class="logo-r">R</span><span class="logo-g">G</span><span class="logo-b">B</span>
         </h1>
-        
-        <!-- Language Switcher & Menu -->
-        <div class="flex items-center gap-3 z-50">
-            <div class="lang-switch">
-                <div id="lang-uk" class="lang-btn active" onclick="setLanguage('uk')">UK</div>
-                <div id="lang-en" class="lang-btn" onclick="setLanguage('en')">EN</div>
-            </div>
-            <button id="menu-btn" class="w-10 text-white text-xl active:scale-90 transition-transform">☰</button>
-        </div>
-        
-        <!-- Выпадающее меню -->
-        <div id="dropdown" class="dropdown-menu absolute top-full right-0 mt-2 w-56 bg-zinc-900 rounded-xl border border-white/10 shadow-2xl z-50 overflow-hidden">
-            <a href="#" onclick="openModal('usage')" class="block px-4 py-3 text-xs text-zinc-300 hover:bg-zinc-800 border-b border-white/5" data-i18n="menu_usage">Як користуватися</a>
-            <a href="#" onclick="openModal('tech')" class="block px-4 py-3 text-xs text-zinc-300 hover:bg-zinc-800 border-b border-white/5" data-i18n="menu_tech">Технологія</a>
-            <a href="#" onclick="openModal('author')" class="block px-4 py-3 text-xs text-zinc-300 hover:bg-zinc-800 border-b border-white/5" data-i18n="menu_author">Автор і контакти</a>
-            <button onclick="globalReset()" class="w-full text-left px-4 py-3 text-xs text-red-400 hover:bg-zinc-800 font-bold uppercase tracking-wide" data-i18n="menu_reset">Reset / Очистити всё</button>
-        </div>
+        <button class="w-10 text-xl">☰</button>
     </div>
 
-    <!-- === MODE SWITCHER (NEW) === -->
     <div class="mode-switch-container">
-        <div id="mode-standard-btn" class="mode-btn active" onclick="setMode('standard')">Standard QR</div>
-        <div id="mode-ornamental-btn" class="mode-btn" onclick="setMode('ornamental')">Ornamental QR</div>
+        <div id="mode-standard-btn" class="mode-btn active" onclick="setMode('standard')">Standard</div>
+        <div id="mode-ornamental-btn" class="mode-btn" onclick="setMode('ornamental')">Ornamental</div>
     </div>
 
-    <!-- Inputs -->
-    <div class="mb-6">
-        <!-- Standard Inputs -->
-        <div id="inputs-standard" class="inputs-standard active space-y-3">
-            <textarea id="r-text" class="w-full p-4 rounded-xl border-l-4 border-red-600 outline-none h-14 text-sm" placeholder="RED CHANNEL..."></textarea>
-            <textarea id="g-text" class="w-full p-4 rounded-xl border-l-4 border-green-600 outline-none h-14 text-sm" placeholder="GREEN CHANNEL..."></textarea>
-            <textarea id="b-text" class="w-full p-4 rounded-xl border-l-4 border-blue-600 outline-none h-14 text-sm" placeholder="BLUE (PRIORITY)..." data-priority="true"></textarea>
-        </div>
-
-        <!-- Ornamental Inputs (NEW) -->
-        <div id="inputs-ornamental" class="inputs-ornamental">
-            <textarea id="ornamental-text" class="w-full p-4 rounded-xl border-l-4 border-purple-600 outline-none h-14 text-sm" placeholder="Enter text for QR Code..."></textarea>
-            <p class="text-xs text-zinc-500 mt-2 text-center">Blue = QR, Red/Green = 8-fold Symmetry</p>
-        </div>
+    <div id="inputs-standard" class="inputs-standard active space-y-3">
+        <textarea id="r-text" class="w-full p-4 rounded-xl border-l-4 border-red-600 h-14 text-sm" placeholder="RED..."></textarea>
+        <textarea id="g-text" class="w-full p-4 rounded-xl border-l-4 border-green-600 h-14 text-sm" placeholder="GREEN..."></textarea>
+        <textarea id="b-text" class="w-full p-4 rounded-xl border-l-4 border-blue-600 h-14 text-sm" placeholder="BLUE (QR)..."></textarea>
     </div>
 
-    <!-- Central Frame -->
-    <div class="flex-1 flex flex-col items-center justify-center mb-6">
-        <div id="central-container" class="relative w-72 h-72 bg-zinc-950 rounded-[2rem p-5 border border-white/5 shadow-2xl overflow-hidden">
-            <!-- Layers: QR, Video, Image -->
-            <canvas id="qr-main" width="512" height="512" class="w-full h-full transition-opacity duration-500"></canvas>
-            <video id="video" class="absolute inset-0 w-full h-full object-cover hidden" playsinline></video>
-            <canvas id="freeze-frame" class="absolute inset-0 w-full h-full object-cover hidden z-10"></canvas>
-            
-            <!-- Overlays -->
-            <div class="scan-line"></div>
-            <div id="flash-layer" class="absolute inset-0 bg-white opacity-0 pointer-events-none z-50"></div>
-        </div>
+    <div id="inputs-ornamental" class="inputs-ornamental space-y-3">
+        <textarea id="orn-text" class="w-full p-4 rounded-xl border-l-4 border-purple-600 h-14 text-sm" placeholder="Type for Snowflake QR..."></textarea>
+    </div>
 
-        <!-- Result Indicators -->
-        <div id="result-indicators" class="w-72 mt-4 space-y-2 opacity-0 transition-opacity duration-300">
-            <div id="res-r" class="p-3 bg-zinc-900/60 rounded-xl flex items-center gap-3 border border-white/5">
-                <div class="indicator"></div>
-                <span class="text-[10px] text-zinc-500 uppercase tracking-tighter">R: Waiting...</span>
-            </div>
-            <div id="res-g" class="p-3 bg-zinc-900/60 rounded-xl flex items-center gap-3 border border-white/5">
-                <div class="indicator"></div>
-                <span class="text-[10px] text-zinc-500 uppercase tracking-tighter">G: Waiting...</span>
-            </div>
-            <div id="res-b" class="p-3 bg-zinc-900/60 rounded-xl flex items-center gap-3 border border-blue-500/20 flex items-center gap-3">
-                <div class="indicator"></div>
-                <span class="text-[10px text-zinc-400 uppercase tracking-tighter">B: Priority Ready</span>
-            </div>
+    <div class="flex-1 flex flex-col items-center justify-center py-6">
+        <div class="relative w-72 h-72 bg-zinc-950 border border-white/5 shadow-2xl">
+            <canvas id="qr-main" width="512" height="512" class="w-full h-full"></canvas>
         </div>
     </div>
 
-    <!-- Actions -->
-    <div class="space-y-3 pb-4">
-        <button id="save-btn" onclick="saveQR()" class="w-full py-4 bg-white text-black font-black rounded-2xl hidden active:scale-95 text-xs tracking-widest uppercase" data-i18n="btn_save">Save Result</button>
-        <div class="grid grid-cols-2 gap-3">
-            <button onclick="startCamera()" class="py-4 bg-zinc-900 text-white font-bold rounded-2xl border border-white/10 active:scale-95 text-[10px] uppercase" data-i18n="btn_camera">Open Camera</button>
-            <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFile(event)">
-            <button onclick="triggerFileInput()" class="py-4 bg-zinc-900 text-white font-bold rounded-2xl border border-white/10 active:scale-95 text-[10px uppercase tracking-widest">Open Gallery</button>
-        </div>
-    </div>
-
-    <!-- Modal -->
-    <div id="modal-overlay" class="modal-overlay fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl">
-        <div class="modal-content w-full max-w-md bg-zinc-900/80 border border-white/10 rounded-3xl p-6 shadow-2xl relative max-h-[80vh] overflow-y-auto">
-            <button onclick="closeModal" class="absolute top-4 right-4 text-xs text-zinc-300 right-0 top-4 right-0" onclick="closeModal()">×CLOSE</button>
-            <h2 id="modal-title" class="text-lg font-bold mb-4 pr-10"></h2>
-            <div id="modal-body" class="text-sm text-zinc-300 space-y-4 leading-relaxed"></div>
-        </div>
-    </div>
+    <button id="save-btn" onclick="saveImage()" class="w-full py-4 bg-white text-black font-black rounded-2xl text-xs tracking-widest uppercase mb-4">Save PNG</button>
 
     <script>
-        // --- CONFIGURATION & STATE ---
-        let currentLang = 'uk';
-        let currentMode = 'standard'; // 'standard' or 'ornamental'
-        
-        // --- LOCALIZATION ENGINE (UPDATED) ---
-        const translations = {
-            uk: {
-                menu_usage: "Як користуватися",
-                menu_tech: "Технологія",
-                menu_author: "Автор і контакти",
-                menu_reset: "Reset / Очистити всё",
-                btn_save: "Зберегти PNG",
-                btn_camera: "Камера",
-                btn_gallery: "Галерея",
-                ph_r: "Текст для Red...",
-                ph_g: "Текст для Green...",
-                ph_b: "Текст для Blue...",
-                ph_ornamental: "Текст для QR-коду...",
-                mode_standard: "Standard QR",
-                mode_ornamental: "Ornamental QR",
-                // ... (keep existing translations)
-            },
-            en: {
-                menu_usage: "How to use",
-                menu_tech: "Technology",
-                menu_author: "Author & Contacts",
-                menu_reset: "Reset / Clear All",
-                btn_save: "Save PNG",
-                btn_camera: "Camera",
-                btn_gallery: "Gallery",
-                ph_r: "Text for Red...",
-                ph_g: "Text for Green...",
-                ph_b: "Text for Blue...",
-                ph_ornamental: "Text for QR Code...",
-                mode_standard: "Standard QR",
-                mode_ornamental: "Ornamental QR",
-                // ...
-            }
-        };
+        const canvas = document.getElementById('qr-main');
+        const ctx = canvas.getContext('2d');
+        const mini = document.getElementById('mini-qr');
+        let currentMode = 'standard';
 
-        // --- DOM ELEMENTS ---
-        const els = {
-            r: document.getElementById('r-text'),
-            g: document.getElementById('g-text'),
-            b: document.getElementById('b-text'),
-            orn: document.getElementById('ornamental-text'),
-            main: document.getElementById('qr-main'),
-            mini: document.getElementById('mini-qr'),
-            video: document.getElementById('video'),
-            freeze: document.getElementById('freeze-frame'),
-            // ... other elements
-        };
-
-        // --- MODE SWITCHING LOGIC (NEW) ---
         function setMode(mode) {
             currentMode = mode;
-            
-            // Update UI buttons
             document.getElementById('mode-standard-btn').classList.toggle('active', mode === 'standard');
             document.getElementById('mode-ornamental-btn').classList.toggle('active', mode === 'ornamental');
-            
-            // Toggle inputs visibility
             document.getElementById('inputs-standard').classList.toggle('active', mode === 'standard');
             document.getElementById('inputs-ornamental').classList.toggle('active', mode === 'ornamental');
-            
-            // Reset and regenerate
-            if (mode === 'standard') {
-                generateQR();
-            } else {
-                generateOrnamentalQR();
-            }
         }
-        
-        // Add listeners for ornamental input
-        els.orn.addEventListener('input', generateOrnamentalQR);
 
-        // --- SNOWFLAKE ALGORITHM (8-FOLD SYMMETRY) ---
         function generateSnowflakeGrid(size) {
-            const grid = Array(size).fill(null).map(() => Array(size).fill(0)); // 0 = white
+            const grid = Array(size).fill(0).map(() => Array(size).fill(0));
             const center = Math.floor(size / 2);
-            
-            // Only generate for the first octant
-            for (let i = 0; i < size; i++) {
-                for (let j = 0; j < size; j++) {
-                    const dx = i - center;
-                    const dy = center - j; // y-axis inverted for canvas
-                    
-                    // First octant condition: x >= 0, y >= 0, y <= x
-                    if (dx >= 0 && dy >= 0 && dy <= dx) {
-                        const val = Math.random() < 0.5 ? 1 : 0; // 1 = black
-                        setSymmetric(grid, size, center, dx, dy, val);
-                    }
+            for (let x = 0; x <= center; x++) {
+                for (let y = 0; y <= x; y++) {
+                    const val = Math.random() < 0.5 ? 1 : 0;
+                    set8Symmetric(grid, size, center, x, y, val);
                 }
             }
             return grid;
         }
 
-        function setSymmetric(grid, size, center, dx, dy, val) {
-            // Apply 8-fold symmetry transformations
-            const transformations = [
-                [dx, dy],       // Original
-                [-dx, dy],     // H-flip
-                [dx, -dy],    // V-flip
-                [-dx, -dy],   // HV-flip
-                [dy, dx],      // Diagonal 1
-                [-dy, dx],    // ...
-                [dy,, -dx],    
-                [-dy, -dx]
+        function set8Symmetric(grid, size, center, x, y, val) {
+            const points = [
+                [x, y], [y, x], [-x, y], [y, -x],
+                [-x, -y], [-y, -x], [x, -y], [-y, x]
             ];
-            
-            transformations.forEach(([px, py]) => {
+            points.forEach(([px, py]) => {
                 const gx = center + px;
-                const gy = center - py; // Canvas y is inverted
-                
+                const gy = center + py;
                 if (gx >= 0 && gx < size && gy >= 0 && gy < size) {
                     grid[gy][gx] = val;
                 }
             });
         }
 
-        // --- ORNAMENTAL QR GENERATOR (NEW) ---
-        function generateOrnamentalQR() {
-            const text = els.orn.value;
-            if (!text.trim()) {
-                // Clear canvas if empty
-                els.main.style.opacity = 0;
-                return;
-            }
-            
-            // 1. Create base QR to determine size
+        function render() {
+            const text = currentMode === 'standard' ? document.getElementById('b-text').value : document.getElementById('orn-text').value;
+            if (!text) return;
+
             const qr = qrcode(0, 'M');
-            qr.addData(unescape(encodeURIComponent(text)));
+            qr.addData(text);
             qr.make();
-            
-            const modCount = qr.getModuleCount();
-            const canvasSize = 512;
-            const modSize = canvasSize / modCount;
-            
-            const ctx = els.main.getContext('2d');
-            ctx.fillStyle = "#FFFFFF"; // Background
-            ctx.fillRect(0, 0, canvasSize, canvasSize);
-            
-            // Prepare layers
-            // Blue = QR Code
-            const qrGrid = [];
-            for(let r=0; r<modCount; r++) {
-                qrGrid[r] = [];
-                for(let c=0; c<modCount; c++) {
-                    qrGrid[r][c] = qr.isDark(r, c) ? 1 : 0;
-                }
-            }
-            
-            // Red & Green = Snowflakes
-            const snowR = generateSnowflakeGrid(modCount);
-            const snowG = generateSnowflakeGrid(modCount);
-            
-            // 2. === "snowG";
-            
-            // Draw
-            const ctx = els.main.getContext('2d');
+            const count = qr.getModuleCount();
+            const modSize = 512 / count;
+
+            ctx.clearRect(0, 0, 512, 512);
             ctx.fillStyle = "#000";
-            ctx.fillRect(0, 0, canvasSize, canvasSize);
-            
-            // Draw using lighten composite
-            ctx.globalCompositeOperation = "lighten";
-            
-            // Draw Blue Channel (QR)
-            ctx.fillStyle = "#0000FF";
-            for(let r=0; r<modCount; r++) {
-                for(let c=0; c<modCount; c++) {
-                    if(qrGrid[r][c]) {
-                        ctx.fillRect(c*modSize, r*modSize, modSize, modSize);
+            ctx.fillRect(0, 0, 512, 512);
+
+            const snowR = generateSnowflakeGrid(count);
+            const snowG = generateSnowflakeGrid(count);
+
+            ctx.globalCompositeOperation = "screen";
+
+            for (let r = 0; r < count; r++) {
+                for (let c = 0; c < count; c++) {
+                    // Blue: QR
+                    if (qr.isDark(r, c)) {
+                        ctx.fillStyle = "#0000FF";
+                        ctx.fillRect(c * modSize, r * modSize, modSize, modSize);
+                    }
+                    if (currentMode === 'ornamental') {
+                        // Red: Snow 1
+                        if (snowR[r][c]) {
+                            ctx.fillStyle = "#FF0000";
+                            ctx.fillRect(c * modSize, r * modSize, modSize, modSize);
+                        }
+                        // Green: Snow 2
+                        if (snowG[r][c]) {
+                            ctx.fillStyle = "#00FF00";
+                            ctx.fillRect(c * modSize, r * modSize, modSize, modSize);
+                        }
                     }
                 }
             }
-            
-            // Draw Red Channel (Snowflake 1)
-            ctx.fillStyle = "#FF0000";
-            for(let r=0; r<modCount; r++) {
-                for(let c=0; c<modCount; c++) {
-                    if(snowR[r][c]) {
-                        ctx.fillRect(c*modSize, r*modSize, modSize, modSize);
-                    }
-                }
-            }
-            
-            // Draw Green Channel (Snowflake 2)
-            ctx.fillStyle = "#00FF00";
-            for(let r=0; r<modCount; r++) {
-                for(let c=0; c<modCount; c++) {
-                    if(snowG[r][c]) {
-                        ctx.fillRect(c*modSize, r*modSize, modSize, modSize);
-                    }
-                }
-            }
-            
-            ctx.globalCompositeOperation = "source-over";
-            els.main.style.opacity = 1;
-            
-            // Update mini
-            els.mini.getContext('2d').drawImage(els.main, 0, 0, 44, 44);
-            document.getElementById('save-btn').classList.remove('hidden');
+            mini.getContext('2d').drawImage(canvas, 0, 0, 44, 44);
         }
 
-        // --- STANDARD QR GENERATOR (EXISTING) ---
-        function generateQR() {
-            // ... (Keep original logic) ...
-            // Just ensure it handles the mode switch if needed
+        function saveImage() {
+            const link = document.createElement('a');
+            link.download = 'QRnament.png';
+            link.href = canvas.toDataURL();
+            link.click();
         }
 
-        // --- INITIALIZATION ---
-        // Listen for input changes in standard mode
-        [els.r, els.g, els.b].forEach(el => el.addEventListener('input', generateQR));
-
+        document.getElementById('orn-text').addEventListener('input', render);
+        document.getElementById('b-text').addEventListener('input', render);
     </script>
 </body>
 </html>
