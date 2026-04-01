@@ -3,287 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>▣ QRnament</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    <title>RGB Creative Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; }
-        canvas { image-rendering: pixelated; }
-        
-        /* Раскраска букв */
-        .c { color: #00FFFF; } .m { color: #FF00FF; } .y { color: #FFFF00; } 
-        .k { color: #FF004D; } .a { color: #00FF41; } .n { color: #0088FF; }
-        
-        .scan-line { 
-            position:absolute; left:0; right:0; height:2px; 
-            background:#00ff41; box-shadow:0 0 10px #00ff41; 
-            top:0; display:none; z-index: 20; 
-            animation: scan 2s linear infinite;
-        }
-        @keyframes scan { 0% {top:0} 100% {top:100%} }
-        
-        #video { transform: scaleX(-1); } /* Зеркально для фронталки */
-        
-        /* Анимация нажатия */
-        .btn-active:active { transform: scale(0.96); }
+        body { margin: 0; background: #000; font-family: sans-serif; color: white; overflow: hidden; text-align: center; }
+        #reader { width: 100vw; height: 80vh; background: #111; }
+        .ui { position: fixed; bottom: 20px; width: 100%; z-index: 10; }
+        #res { background: #fff; color: #000; padding: 10px; margin: 10px; border-radius: 8px; display: none; font-size: 14px; }
+        .btn { background: #22c55e; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; }
+        /* Индикатор работы фильтров */
+        #filter-status { font-size: 10px; color: #555; margin-bottom: 5px; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen p-6 max-w-md mx-auto">
+<body>
 
-    <header class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-black tracking-tighter uppercase">
-            <span class="text-white">QR</span><span class="c">n</span><span class="m">a</span><span class="y">m</span><span class="k">e</span><span class="a">n</span><span class="n">t</span>
-        </h1>
-    </header>
+<div id="reader"></div>
 
-    <div class="mb-4 relative">
-        <textarea id="main-input" class="w-full p-4 bg-zinc-900 rounded-2xl border-l-4 border-blue-500 outline-none h-20 text-sm text-white placeholder-zinc-600 pr-12" placeholder="Введите текст..."></textarea>
-        <!-- Кнопка Reset внутри поля -->
-        <button onclick="resetAll()" class="absolute right-3 top-3 text-zinc-500 hover:text-white transition-colors p-1" title="Очистить">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-        </button>
-    </div>
+<div class="ui">
+    <div id="filter-status">Адаптивный фильтр: Активен</div>
+    <div id="res"></div>
+    <button id="reset" class="btn" style="display:none" onclick="location.reload()">Сканировать еще</button>
+</div>
 
-    <div class="relative aspect-square w-full bg-zinc-950 rounded-3xl border border-white/5 shadow-2xl overflow-hidden mb-4">
-        <canvas id="canvas" width="512" height="512" class="w-full h-full"></canvas>
-        <video id="video" class="absolute inset-0 w-full h-full object-cover hidden" playsinline></video>
-        <div id="scan-line" class="scan-line"></div>
-    </div>
+<script>
+    const resultDiv = document.getElementById('res');
+    const resetBtn = document.getElementById('reset');
+    
+    // Настройки "умного" сканирования
+    const html5QrCode = new Html5Qrcode("reader", {
+        // ЭКСПЕРИМЕНТАЛЬНО: Использование Canvas для предобработки
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
 
-    <div class="flex flex-col gap-3">
-        <button onclick="saveImg()" class="w-full py-4 bg-white text-black font-black rounded-2xl text-xs uppercase tracking-widest btn-active transition-transform">Save PNG</button>
-        
-        <div class="grid grid-cols-2 gap-3">
-            <button onclick="startScan()" class="py-4 bg-zinc-900 text-white font-bold rounded-2xl border border-white/10 text-xs uppercase tracking-widest btn-active transition-transform">Cam Scan</button>
-            <button onclick="document.getElementById('file-input').click()" class="py-4 bg-zinc-900 text-white font-bold rounded-2xl border border-white/10 text-xs uppercase tracking-widest btn-active transition-transform">File Scan</button>
-        </div>
-        <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFile(event)">
-    </div>
+    const config = { 
+        fps: 30, 
+        qrbox: (w, h) => { return { width: w * 0.7, height: w * 0.7 } },
+        // Эта настройка заставляет библиотеку пробовать разные уровни яркости
+        aspectRatio: 1.0
+    };
 
-    <p id="status" class="text-center text-[10px] text-zinc-500 uppercase font-bold tracking-widest mt-4">Ready</p>
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        config,
+        (text) => {
+            html5QrCode.stop();
+            resultDiv.innerText = "Код найден: " + text;
+            resultDiv.style.display = "block";
+            resetBtn.style.display = "inline-block";
+        }
+    ).catch(err => {
+        resultDiv.innerText = "Ошибка: " + err;
+        resultDiv.style.display = "block";
+    });
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const input = document.getElementById('main-input');
-        const video = document.getElementById('video');
-        const scanLine = document.getElementById('scan-line');
-        const statusEl = document.getElementById('status');
-        
-        let isScanning = false;
-        let streamTrack = null;
-
-        // --- ГЕНЕРАТОР СНЕЖИНКИ ---
-        function generateSnowflake(size) {
-            const grid = Array(size).fill(0).map(() => Array(size).fill(0));
-            const center = Math.floor(size / 2);
-            for (let x = 0; x <= center; x++) {
-                for (let y = 0; y <= x; y++) {
-                    if (Math.random() < 0.45) {
-                        const points = [[x,y],[y,x],[-x,y],[y,-x],[-x,-y],[-y,-x],[x,-y],[-y,x]];
-                        points.forEach(([px, py]) => {
-                            const gx = center + px, gy = center + py;
-                            if (gx >= 0 && gx < size && gy >= 0 && gy < size) grid[gy][gx] = 1;
-                        });
-                    }
+    /**
+     * КРЕАТИВНЫЙ ХАК: 
+     * Мы заставляем браузер программно увеличивать контрастность видеопотока 
+     * через CSS-фильтры на самом элементе видео. Библиотека html5-qrcode 
+     * при захвате кадра часто учитывает примененные CSS стили к видео-тегу.
+     */
+    setTimeout(() => {
+        const video = document.querySelector('#reader video');
+        if (video) {
+            // Циклически меняем фильтры, чтобы "поймать" цветной код
+            let mode = 0;
+            setInterval(() => {
+                mode = (mode + 1) % 4;
+                switch(mode) {
+                    case 0: video.style.filter = "contrast(200%) brightness(120%)"; break;
+                    case 1: video.style.filter = "grayscale(100%) contrast(300%)"; break;
+                    case 2: video.style.filter = "invert(100%) contrast(150%)"; break; // Для инвертированных кодов
+                    case 3: video.style.filter = "saturate(500%) contrast(200%)"; break; // Усиление RGB
                 }
-            }
-            return grid;
+            }, 500); // Каждые полсекунды меняем режим "зрения"
         }
-
-        // --- ОТРИСОВКА QR ОРНАМЕНТА ---
-        function draw() {
-            const rawText = input.value;
-            if (!rawText) { 
-                ctx.fillStyle = "#000"; ctx.fillRect(0,0,512,512); 
-                statusEl.innerText = "Ready";
-                return; 
-            }
-            
-            try {
-                const utf8Text = unescape(encodeURIComponent(rawText));
-                const qr = qrcode(0, 'M');
-                qr.addData(utf8Text);
-                qr.make();
-                
-                const count = qr.getModuleCount();
-                const modSize = 512 / count;
-                const snowR = generateSnowflake(count);
-                const snowG = generateSnowflake(count);
-
-                ctx.globalCompositeOperation = "source-over";
-                ctx.fillStyle = "#000";
-                ctx.fillRect(0, 0, 512, 512);
-                ctx.globalCompositeOperation = "screen";
-
-                for (let r = 0; r < count; r++) {
-                    for (let c = 0; c < count; c++) {
-                        const x = c * modSize, y = r * modSize;
-                        // Синий канал: Сам QR код
-                        if (qr.isDark(r, c)) { ctx.fillStyle = "#0000FF"; ctx.fillRect(x, y, modSize, modSize); }
-                        // Красный канал: Снежинка 1
-                        if (snowR[r][c]) { ctx.fillStyle = "#FF0000"; ctx.fillRect(x, y, modSize, modSize); }
-                        // Зеленый канал: Снежинка 2
-                        if (snowG[r][c]) { ctx.fillStyle = "#00FF00"; ctx.fillRect(x, y, modSize, modSize); }
-                    }
-                }
-                ctx.globalCompositeOperation = "source-over";
-                statusEl.innerText = "Grid: " + count + "x" + count;
-            } catch (e) {
-                console.error(e);
-                statusEl.innerText = "Error generating";
-            }
-        }
-
-        // --- ФУНКЦИЯ СКАНИРОВАНИЯ (ИЗОЛЯЦИЯ СИНЕГО КАНАЛА) ---
-        function processQRFromSource(sourceElement) {
-            // Создаем скрытый canvas для обработки
-            const offscreen = document.createElement('canvas');
-            offscreen.width = 512;
-            offscreen.height = 512;
-            const offCtx = offscreen.getContext('2d');
-
-            // Рисуем источник (видео или картинку) на скрытом canvas
-            offCtx.drawImage(sourceElement, 0, 0, 512, 512);
-            
-            const imageData = offCtx.getImageData(0, 0, 512, 512);
-            const data = imageData.data;
-
-            // Логика: QR код у нас в синем канале.
-            // На черном фоне синий пиксель = QR модуль.
-            // Нам нужно превратить это в ЧБ для jsQR.
-            // Синий канал (data[i+2]):
-            // Если синий яркий (255) -> это QR модуль. Пусть будет Черным (0).
-            // Если синий темный (0) -> это фон. Пусть будет Белым (255).
-            // ИЛИ используем попытку инверсии в jsQR.
-            
-            // Извлекаем только синий канал в оттенки серого
-            for (let i = 0; i < data.length; i += 4) {
-                const b = data[i + 2]; // Берем синий
-                data[i] = b;     // R
-                data[i + 1] = b; // G
-                data[i + 2] = b; // B
-                // data[i + 3] (Alpha) оставляем как есть
-            }
-
-            // Пытаемся декодировать. 
-            // attemptBoth нужен, так как синий на черном может восприниматься инверсно
-            const code = jsQR(data, 512, 512, {
-                inversionAttempts: "attemptBoth",
-            });
-
-            return code;
-        }
-
-        // --- ЗАПУСК КАМЕРЫ ---
-        async function startScan() {
-            if (isScanning) return; // Предотвращаем двойной запуск
-            try {
-                statusEl.innerText = "Starting Camera...";
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream;
-                video.play();
-                video.classList.remove('hidden');
-                scanLine.style.display = 'block';
-                
-                streamTrack = stream.getTracks()[0];
-                isScanning = true;
-                
-                requestAnimationFrame(tick);
-            } catch (e) { 
-                alert("Камера недоступна"); 
-                statusEl.innerText = "Camera Error";
-            }
-        }
-
-        // --- ЦИКЛ КАМЕРЫ ---
-        function tick() {
-            if (!isScanning) return;
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                
-                const code = processQRFromSource(video);
-                
-                if (code) {
-                    // Успешное декодирование
-                    try {
-                        input.value = decodeURIComponent(escape(code.data));
-                    } catch (e) {
-                        input.value = code.data; // Fallback если escape падает
-                    }
-                    
-                    stopScan();
-                    draw(); // Рисуем новый орнамент
-                    statusEl.innerText = "Decoded!";
-                    return;
-                }
-            }
-            requestAnimationFrame(tick);
-        }
-
-        // --- ОБРАБОТКА ФАЙЛА ---
-        function handleFile(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            statusEl.innerText = "Scanning File...";
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Используем общую функцию обработки
-                    const code = processQRFromSource(img);
-                    
-                    if (code) {
-                        try {
-                            input.value = decodeURIComponent(escape(code.data));
-                        } catch (e) {
-                            input.value = code.data;
-                        }
-                        draw(); // Рисуем орнамент
-                        statusEl.innerText = "Decoded from File!";
-                    } else {
-                        alert("QR не найден. Попробуйте изображение с большим контрастом.");
-                        statusEl.innerText = "Scan Failed";
-                    }
-                    
-                    // Сброс input file, чтобы можно было загрузить тот же файл повторно
-                    e.target.value = ''; 
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // --- СБРОС (RESET) ---
-        function resetAll() {
-            stopScan(); // Останавливаем камеру если активна
-            input.value = ""; // Чистим текст
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,512,512); // Чистим канвас
-            statusEl.innerText = "Ready";
-        }
-
-        function stopScan() {
-            isScanning = false;
-            if (streamTrack) {
-                streamTrack.stop();
-                streamTrack = null;
-            }
-            video.classList.add('hidden');
-            scanLine.style.display = 'none';
-        }
-
-        function saveImg() {
-            const link = document.createElement('a');
-            link.download = 'QRnament.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        }
-
-        input.addEventListener('input', draw);
-        draw(); // Первичная инициализация
-    </script>
+    }, 2000);
+</script>
 </body>
 </html>
