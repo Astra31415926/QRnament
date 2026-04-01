@@ -1,416 +1,87 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8"><!DOCTYPE html>
-<html lang="ru">
-<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RGB QR Scanner</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-color: #e0e0e0;
-            --accent-red: #ff5252;
-            --accent-green: #4caf50;
-            --accent-blue: #448aff;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        h1 { margin-bottom: 10px; font-weight: 300; letter-spacing: 2px; }
-
-        /* Основное видео скрыто, так как мы используем canvas для предпросмотра */
-        #video-container {
-            display: none; 
-        }
-
-        .controls {
-            margin-bottom: 20px;
-        }
-
-        button {
-            background-color: var(--card-bg);
-            color: white;
-            border: 1px solid #333;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 4px;
-            transition: background 0.3s;
-        }
-
-        button:hover { background-color: #333; }
-
-        .channels-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .channel-card {
-            background-color: var(--card-bg);
-            border-radius: 8px;
-            padding: 15px;
-            width: 320px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .channel-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .channel-card.red .channel-title { color: var(--accent-red); }
-        .channel-card.green .channel-title { color: var(--accent-green); }
-        .channel-card.blue .channel-title { color: var(--accent-blue); }
-
-        canvas {
-            width: 100%;
-            height: auto;
-            background: #000;
-            border-radius: 4px;
-            image-rendering: pixelated; /* Убираем размытие браузера */
-        }
-
-        .result-box {
-            margin-top: 10px;
-            width: 100%;
-            min-height: 60px;
-            background: #000;
-            padding: 10px;
-            box-sizing: border-box;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 14px;
-            word-break: break-all;
-            color: #aaa;
-            border-left: 4px solid #444;
-        }
-
-        .channel-card.red .result-box { border-left-color: var(--accent-red); }
-        .channel-card.green .result-box { border-left-color: var(--accent-green); }
-        .channel-card.blue .result-box { border-left-color: var(--accent-blue); }
-
-        .status {
-            margin-top: 5px;
-            font-size: 12px;
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>RGB QR SCANNER</h1>
-
-    <div class="controls">
-        <button id="startBtn">Запустить камеру</button>
-        <button id="resetBtn" style="margin-left: 10px;">Сбросить все</button>
-    </div>
-
-    <!-- Скрытый контейнер для работы библиотеки с камерой -->
-    <div id="video-container"></div>
-
-    <div class="channels-container">
-        <!-- Красный канал -->
-        <div class="channel-card red">
-            <div class="channel-title">Red Channel</div>
-            <canvas id="canvas-r" width="320" height="240"></canvas>
-            <div class="result-box" id="result-r">Ожидание...</div>
-            <div class="status" id="status-r">Idle</div>
-        </div>
-
-        <!-- Зеленый канал -->
-        <div class="channel-card green">
-            <div class="channel-title">Green Channel</div>
-            <canvas id="canvas-g" width="320" height="240"></canvas>
-            <div class="result-box" id="result-g">Ожидание...</div>
-            <div class="status" id="status-g">Idle</div>
-        </div>
-
-        <!-- Синий канал -->
-        <div class="channel-card blue">
-            <div class="channel-title">Blue Channel</div>
-            <canvas id="canvas-b" width="320" height="240"></canvas>
-            <div class="result-box" id="result-b">Ожидание...</div>
-            <div class="status" id="status-b">Idle</div>
-        </div>
-    </div>
-
-    <script>
-        // Элементы DOM
-        const startBtn = document.getElementById('startBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const videoContainer = document.getElementById('video-container');
-
-        // Canvases и Contexts
-        const canvasR = document.getElementById('canvas-r');
-        const canvasG = document.getElementById('canvas-g');
-        const canvasB = document.getElementById('canvas-b');
-        const ctxR = canvasR.getContext('2d', { willReadFrequently: true });
-        const ctxG = canvasG.getContext('2d', { willReadFrequently: true });
-        const ctxB = canvasB.getContext('2d', { willReadFrequently: true });
-
-        // Результаты
-        const resultR = document.getElementById('result-r');
-        const resultG = document.getElementById('result-g');
-        const resultB = document.getElementById('result-b');
-
-        // Переменные сканера
-        let html5QrCode = null;
-        let isScanning = false;
-        let scanIntervalId = null;
-        
-        // Кэш для предотвращения повторного декодирования одной строки
-        const cache = { r: new Set(), g: new Set(), b: new Set() };
-
-        // Конфигурация сканера
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-        startBtn.onclick = async () => {
-            if (isScanning) return;
-
-            try {
-                // Инициализация html5-qrcode
-                html5QrCode = new Html5Qrcode("video-container");
-                
-                // Получаем доступ к камере
-                await html5QrCode.start(
-                    { facingMode: "environment" }, 
-                    config,
-                    (decodedText, decodedResult) => {
-                        // Этот колбэк стандартного сканера нам не нужен, 
-                        // так как мы используем свой цикл обработки.
-                    },
-                    (errorMessage) => {
-                        // Игнорируем ошибки стандартного сканера
-                    }
-                );
-
-                isScanning = true;
-                startBtn.textContent = "Камера активна";
-                startBtn.disabled = true;
-
-                // Запуск кастомного цикла обработки (5 FPS)
-                scanIntervalId = setInterval(processFrame, 200);
-
-            } catch (err) {
-                alert("Ошибка доступа к камере: " + err);
-            }
-        };
-
-        resetBtn.onclick = () => {
-            resultR.textContent = "Ожидание...";
-            resultG.textContent = "Ожидание...";
-            resultB.textContent = "Ожидание...";
-            cache.r.clear();
-            cache.g.clear();
-            cache.b.clear();
-        };
-
-        // Функция обработки кадра
-        function processFrame() {
-            // Получаем видео элемент из библиотеки
-            const videoElement = document.querySelector('#video-container video');
-            if (!videoElement || videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) return;
-
-            const width = videoElement.videoWidth;
-            const height = videoElement.videoHeight;
-
-            // Создаем оффскрин буфер для захвата кадра
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = width;
-            tempCanvas.height = height;
-            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-            
-            tempCtx.drawImage(videoElement, 0, 0, width, height);
-            const imageData = tempCtx.getImageData(0, 0, width, height);
-            
-            // Обработка и сканирование
-            separateAndScanChannels(imageData);
-        }
-
-        // Сепарация каналов и сканирование
-        async function separateAndScanChannels(imageData) {
-            const data = imageData.data; // Uint8ClampedArray (RGBA)
-            const len = data.length;
-            
-            // Создаем буферы для трех каналов
-            // Используем ImageData для оптимизации отрисовки
-            const rData = new ImageData(imageData.width, imageData.height);
-            const gData = new ImageData(imageData.width, imageData.height);
-            const bData = new ImageData(imageData.width, imageData.height);
-
-            const rPixels = rData.data; // Uint8ClampedArray
-            const gPixels = gData.data;
-            const bPixels = bData.data;
-
-            // Оптимизированный цикл (Uint8ClampedArray access)
-            for (let i = 0; i < len; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const a = data[i + 3];
-
-                // Red Channel
-                rPixels[i] = r;     // R
-                rPixels[i + 1] = 0; // G
-                rPixels[i + 2] = 0; // B
-                rPixels[i + 3] = a; // A
-
-                // Green Channel
-                gPixels[i] = 0;
-                gPixels[i + 1] = g;
-                gPixels[i + 2] = 0;
-                gPixels[i + 3] = a;
-
-                // Blue Channel
-                bPixels[i] = 0;
-                bPixels[i + 1] = 0;
-                bPixels[i + 2] = b;
-                bPixels[i + 3] = a;
-            }
-
-            // Отрисовка на UI Canvas (масштабирование делается CSS)
-            // Важно: putImageData быстрее, чем отрисовка image
-            ctxR.putImageData(rData, 0, 0);
-            ctxG.putImageData(gData, 0, 0);
-            ctxB.putImageData(bData, 0, 0);
-
-            // Параллельное сканирование
-            // Преобразуем canvas в Base64 для scanImage
-            const imgR = canvasR.toDataURL("image/png");
-            const imgG = canvasG.toDataURL("image/png");
-            const imgB = canvasB.toDataURL("image/png");
-
-            scanChannel('r', imgR, resultR);
-            scanChannel('g', imgG, resultG);
-            scanChannel('b', imgB, resultB);
-        }
-
-        // Функция сканирования конкретного канала
-        function scanChannel(channelKey, imageBase64, resultElement) {
-            // Проверка: если результат уже найден и неизменен, не сканируем
-            // (Опционально: можно сканировать постоянно, если нужно отслеживать смену кода)
-            
-            Html5Qrcode.scanImage(imageBase64, true, {}, true)
-                .then(decodedText => {
-                    if (!cache[channelKey].has(decodedText)) {
-                        cache[channelKey].add(decodedText);
-                        resultElement.textContent = decodedText;
-                        resultElement.style.color = 'white';
-                        
-                        // Хэптик фидбек (если доступен)
-                        if (navigator.vibrate) navigator.vibrate(50);
-                    }
-                })
-                .catch(err => {
-                    // QR не найден в этом канале - это нормально
-                });
-        }
-    </script>
-</body>
-</html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RGB Multi-Scanner</title>
+    <title>RGB Logic Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; }
-        #main-reader { display: none; }
-        .grid { display: flex; flex-direction: column; gap: 10px; padding: 10px; align-items: center; }
-        .channel-box { width: 180px; border: 2px solid #333; border-radius: 8px; overflow: hidden; background: #000; }
-        canvas { width: 100%; display: block; image-rendering: pixelated; }
-        .res-text { font-size: 12px; padding: 5px; min-height: 20px; background: #222; word-break: break-all; }
-        .btn-reset { margin: 20px; padding: 15px 40px; border-radius: 30px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer; }
-        .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-top: 5px; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #reader { width: 1px; height: 1px; opacity: 0; position: absolute; }
+        .container { width: 100%; max-width: 400px; padding: 10px; box-sizing: border-box; }
+        .ch-card { border: 1px solid #333; margin-bottom: 15px; background: #111; border-radius: 8px; overflow: hidden; }
+        canvas { width: 100%; display: block; background: #000; }
+        .label { padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; display: flex; justify-content: space-between; }
+        .res { padding: 10px; background: #000; font-family: monospace; color: #0f0; min-height: 20px; border-top: 1px solid #222; word-break: break-all; }
+        button { margin: 20px; padding: 15px 30px; border-radius: 30px; border: none; background: #2563eb; color: #fff; font-weight: bold; width: 80%; }
+        .red { color: #ff4444; } .green { color: #44ff44; } .blue { color: #4444ff; }
     </style>
 </head>
 <body>
 
-    <div id="main-reader"></div>
+    <button id="startBtn" onclick="init()">ЗАПУСТИТЬ СКАНЕР</button>
+    <div id="reader"></div>
 
-    <div class="grid">
-        <div class="channel-box" style="border-color: #ff4444;">
-            <canvas id="canvasR"></canvas>
-            <div class="label">Red Channel</div>
-            <div id="resR" class="res-text">...</div>
-        </div>
-        <div class="channel-box" style="border-color: #44ff44;">
-            <canvas id="canvasG"></canvas>
-            <div class="label">Green Channel</div>
-            <div id="resG" class="res-text">...</div>
-        </div>
-        <div class="channel-box" style="border-color: #4444ff;">
-            <canvas id="canvasB"></canvas>
-            <div class="label">Blue Channel</div>
-            <div id="resB" class="res-text">...</div>
-        </div>
+    <div class="container">
+        <div class="ch-card"><div class="label red"><span>RED Channel (Mono)</span></div><canvas id="cR"></canvas><div id="rR" class="res">...</div></div>
+        <div class="ch-card"><div class="label green"><span>GREEN Channel (Mono)</span></div><canvas id="cG"></canvas><div id="rG" class="res">...</div></div>
+        <div class="ch-card"><div class="label blue"><span>BLUE Channel (Mono)</span></div><canvas id="cB"></canvas><div id="rB" class="res">...</div></div>
     </div>
 
-    <button class="btn-reset" onclick="location.reload()">СБРОСИТЬ ВСЕ</button>
+<script>
+let html5QrCode;
+const canvases = { R: document.getElementById('cR'), G: document.getElementById('cG'), B: document.getElementById('cB') };
+const results = { R: document.getElementById('rR'), G: document.getElementById('rG'), B: document.getElementById('rB') };
+const offscreen = document.createElement('canvas');
 
-    <script>
-        const html5QrCode = new Html5Qrcode("main-reader");
-        const canvases = { R: document.getElementById('canvasR'), G: document.getElementById('canvasG'), B: document.getElementById('canvasB') };
-        const results = { R: document.getElementById('resR'), G: document.getElementById('resG'), B: document.getElementById('resB') };
-        const hiddenCanvas = document.createElement('canvas');
+async function init() {
+    document.getElementById('startBtn').style.display = 'none';
+    html5QrCode = new Html5Qrcode("reader");
+    await html5QrCode.start({ facingMode: "environment" }, { fps: 20 }, () => {});
+    const video = document.querySelector('#reader video');
+    // Частота 5 кадров в секунду (200мс)
+    setInterval(() => process(video), 200);
+}
 
-        async function start() {
-            await html5QrCode.start({ facingMode: "environment" }, { fps: 10 }, () => {});
-            const video = document.querySelector('#main-reader video');
-            setInterval(() => processFrame(video), 200);
+function process(video) {
+    if (video.readyState < 2) return;
+    
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    offscreen.width = w; offscreen.height = h;
+    
+    const ctx = offscreen.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, w, h);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    
+    // Индексы каналов в массиве RGBA: R=0, G=1, B=2
+    const channels = { R: 0, G: 1, B: 2 };
+
+    Object.keys(channels).forEach(ch => {
+        const idx = channels[ch];
+        const out = canvases[ch];
+        out.width = w; out.height = h;
+        const outCtx = out.getContext('2d');
+        const outData = outCtx.createImageData(w, h);
+        
+        for (let i = 0; i < imgData.data.length; i += 4) {
+            const pixelVal = imgData.data[i + idx]; 
+            // Превращаем в монохром (R,R,R / G,G,G / B,B,B) для лучшего чтения
+            outData.data[i] = outData.data[i+1] = outData.data[i+2] = pixelVal;
+            outData.data[i+3] = 255; 
         }
+        
+        outCtx.putImageData(outData, 0, 0);
 
-        function processFrame(video) {
-            const w = video.videoWidth / 4; // уменьшаем для скорости
-            const h = video.videoHeight / 4;
-            hiddenCanvas.width = w; hiddenCanvas.height = h;
-            const ctx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(video, 0, 0, w, h);
-            
-            const frame = ctx.getImageData(0, 0, w, h);
-            ['R', 'G', 'B'].forEach(ch => {
-                const outCanvas = canvases[ch];
-                outCanvas.width = w; outCanvas.height = h;
-                const outCtx = outCanvas.getContext('2d');
-                const outData = new ImageData(new Uint8ClampedArray(frame.data), w, h);
-                
-                for (let i = 0; i < outData.data.length; i += 4) {
-                    if (ch === 'R') { outData.data[i+1] = 0; outData.data[i+2] = 0; }
-                    if (ch === 'G') { outData.data[i] = 0; outData.data[i+2] = 0; }
-                    if (ch === 'B') { outData.data[i] = 0; outData.data[i+1] = 0; }
-                }
-                
-                outCtx.putImageData(outData, 0, 0);
-                
-                // Попытка распознавания из конкретного канала
-                html5QrCode.scanImage(outCanvas)
-                    .then(text => results[ch].innerText = text)
-                    .catch(() => {}); 
-            });
-        }
-
-        start();
-    </script>
+        // Сканируем текущий холст
+        Html5Qrcode.scanImage(out, { showFps: false })
+            .then(text => { 
+                results[ch].innerText = text;
+                results[ch].style.color = "#fff";
+            })
+            .catch(() => {});
+    });
+}
+</script>
 </body>
 </html>
