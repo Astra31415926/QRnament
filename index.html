@@ -3,81 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RGB Creative Scanner</title>
+    <title>RGB Multi-Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { margin: 0; background: #000; font-family: sans-serif; color: white; overflow: hidden; text-align: center; }
-        #reader { width: 100vw; height: 80vh; background: #111; }
-        .ui { position: fixed; bottom: 20px; width: 100%; z-index: 10; }
-        #res { background: #fff; color: #000; padding: 10px; margin: 10px; border-radius: 8px; display: none; font-size: 14px; }
-        .btn { background: #22c55e; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; }
-        /* Индикатор работы фильтров */
-        #filter-status { font-size: 10px; color: #555; margin-bottom: 5px; }
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; }
+        #main-reader { display: none; }
+        .grid { display: flex; flex-direction: column; gap: 10px; padding: 10px; align-items: center; }
+        .channel-box { width: 180px; border: 2px solid #333; border-radius: 8px; overflow: hidden; background: #000; }
+        canvas { width: 100%; display: block; image-rendering: pixelated; }
+        .res-text { font-size: 12px; padding: 5px; min-height: 20px; background: #222; word-break: break-all; }
+        .btn-reset { margin: 20px; padding: 15px 40px; border-radius: 30px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer; }
+        .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-<div id="reader"></div>
+    <div id="main-reader"></div>
 
-<div class="ui">
-    <div id="filter-status">Адаптивный фильтр: Активен</div>
-    <div id="res"></div>
-    <button id="reset" class="btn" style="display:none" onclick="location.reload()">Сканировать еще</button>
-</div>
+    <div class="grid">
+        <div class="channel-box" style="border-color: #ff4444;">
+            <canvas id="canvasR"></canvas>
+            <div class="label">Red Channel</div>
+            <div id="resR" class="res-text">...</div>
+        </div>
+        <div class="channel-box" style="border-color: #44ff44;">
+            <canvas id="canvasG"></canvas>
+            <div class="label">Green Channel</div>
+            <div id="resG" class="res-text">...</div>
+        </div>
+        <div class="channel-box" style="border-color: #4444ff;">
+            <canvas id="canvasB"></canvas>
+            <div class="label">Blue Channel</div>
+            <div id="resB" class="res-text">...</div>
+        </div>
+    </div>
 
-<script>
-    const resultDiv = document.getElementById('res');
-    const resetBtn = document.getElementById('reset');
-    
-    // Настройки "умного" сканирования
-    const html5QrCode = new Html5Qrcode("reader", {
-        // ЭКСПЕРИМЕНТАЛЬНО: Использование Canvas для предобработки
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
+    <button class="btn-reset" onclick="location.reload()">СБРОСИТЬ ВСЕ</button>
 
-    const config = { 
-        fps: 30, 
-        qrbox: (w, h) => { return { width: w * 0.7, height: w * 0.7 } },
-        // Эта настройка заставляет библиотеку пробовать разные уровни яркости
-        aspectRatio: 1.0
-    };
+    <script>
+        const html5QrCode = new Html5Qrcode("main-reader");
+        const canvases = { R: document.getElementById('canvasR'), G: document.getElementById('canvasG'), B: document.getElementById('canvasB') };
+        const results = { R: document.getElementById('resR'), G: document.getElementById('resG'), B: document.getElementById('resB') };
+        const hiddenCanvas = document.createElement('canvas');
 
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        config,
-        (text) => {
-            html5QrCode.stop();
-            resultDiv.innerText = "Код найден: " + text;
-            resultDiv.style.display = "block";
-            resetBtn.style.display = "inline-block";
+        async function start() {
+            await html5QrCode.start({ facingMode: "environment" }, { fps: 10 }, () => {});
+            const video = document.querySelector('#main-reader video');
+            setInterval(() => processFrame(video), 200);
         }
-    ).catch(err => {
-        resultDiv.innerText = "Ошибка: " + err;
-        resultDiv.style.display = "block";
-    });
 
-    /**
-     * КРЕАТИВНЫЙ ХАК: 
-     * Мы заставляем браузер программно увеличивать контрастность видеопотока 
-     * через CSS-фильтры на самом элементе видео. Библиотека html5-qrcode 
-     * при захвате кадра часто учитывает примененные CSS стили к видео-тегу.
-     */
-    setTimeout(() => {
-        const video = document.querySelector('#reader video');
-        if (video) {
-            // Циклически меняем фильтры, чтобы "поймать" цветной код
-            let mode = 0;
-            setInterval(() => {
-                mode = (mode + 1) % 4;
-                switch(mode) {
-                    case 0: video.style.filter = "contrast(200%) brightness(120%)"; break;
-                    case 1: video.style.filter = "grayscale(100%) contrast(300%)"; break;
-                    case 2: video.style.filter = "invert(100%) contrast(150%)"; break; // Для инвертированных кодов
-                    case 3: video.style.filter = "saturate(500%) contrast(200%)"; break; // Усиление RGB
+        function processFrame(video) {
+            const w = video.videoWidth / 4; // уменьшаем для скорости
+            const h = video.videoHeight / 4;
+            hiddenCanvas.width = w; hiddenCanvas.height = h;
+            const ctx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, 0, 0, w, h);
+            
+            const frame = ctx.getImageData(0, 0, w, h);
+            ['R', 'G', 'B'].forEach(ch => {
+                const outCanvas = canvases[ch];
+                outCanvas.width = w; outCanvas.height = h;
+                const outCtx = outCanvas.getContext('2d');
+                const outData = new ImageData(new Uint8ClampedArray(frame.data), w, h);
+                
+                for (let i = 0; i < outData.data.length; i += 4) {
+                    if (ch === 'R') { outData.data[i+1] = 0; outData.data[i+2] = 0; }
+                    if (ch === 'G') { outData.data[i] = 0; outData.data[i+2] = 0; }
+                    if (ch === 'B') { outData.data[i] = 0; outData.data[i+1] = 0; }
                 }
-            }, 500); // Каждые полсекунды меняем режим "зрения"
+                
+                outCtx.putImageData(outData, 0, 0);
+                
+                // Попытка распознавания из конкретного канала
+                html5QrCode.scanImage(outCanvas)
+                    .then(text => results[ch].innerText = text)
+                    .catch(() => {}); 
+            });
         }
-    }, 2000);
-</script>
+
+        start();
+    </script>
 </body>
 </html>
