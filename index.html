@@ -3,28 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RGB Mono Scanner Fix</title>
+    <title>Scanner No. 1</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; text-align: center; }
+        h1 { font-size: 20px; margin: 15px 0; color: #aaa; text-transform: uppercase; letter-spacing: 2px; }
         #reader { display: none; }
-        .container { display: flex; flex-direction: column; gap: 10px; align-items: center; padding: 10px; }
-        .box { width: 90vw; max-width: 300px; border: 2px solid #333; border-radius: 10px; background: #111; overflow: hidden; }
+        .container { display: flex; flex-direction: column; gap: 15px; align-items: center; padding: 10px; }
+        .box { width: 90vw; max-width: 320px; border: 1px solid #444; border-radius: 8px; background: #111; overflow: hidden; }
         canvas { width: 100%; display: block; image-rendering: pixelated; }
-        .res { padding: 8px; font-family: monospace; font-size: 14px; min-height: 1.2em; color: #0f0; border-top: 1px solid #222; }
-        button { margin: 20px; padding: 15px 30px; border-radius: 30px; border: none; background: #2563eb; color: white; font-weight: bold; }
-        .r-brd { border-color: #ff4444; } .g-brd { border-color: #44ff44; } .b-brd { border-color: #4444ff; }
+        .res { padding: 10px; font-family: monospace; font-size: 14px; min-height: 1.5em; color: #0f0; border-top: 1px solid #222; background: #050505; }
+        button { margin: 20px; padding: 15px 40px; border-radius: 30px; border: none; background: #2563eb; color: white; font-weight: bold; font-size: 16px; }
+        .label { font-size: 10px; padding: 5px; color: #888; text-align: left; padding-left: 10px; }
     </style>
 </head>
 <body>
 
+    <h1>Сканер № 1</h1>
     <button id="startBtn" onclick="init()">ЗАПУСТИТЬ КАМЕРУ</button>
     <div id="reader"></div>
 
     <div class="container">
-        <div class="box r-brd"><canvas id="cR"></canvas><div id="rR" class="res">---</div></div>
-        <div class="box g-brd"><canvas id="cG"></canvas><div id="rG" class="res">---</div></div>
-        <div class="box b-brd"><canvas id="cB"></canvas><div id="rB" class="res">---</div></div>
+        <div class="box"><div class="label">КРАСНЫЙ КАНАЛ (MONO)</div><canvas id="cR"></canvas><div id="rR" class="res">---</div></div>
+        <div class="box"><div class="label">ЗЕЛЕНЫЙ КАНАЛ (MONO)</div><canvas id="cG"></canvas><div id="rG" class="res">---</div></div>
+        <div class="box"><div class="label">СИНИЙ КАНАЛ (MONO)</div><canvas id="cB"></canvas><div id="rB" class="res">---</div></div>
     </div>
 
 <script>
@@ -36,48 +38,49 @@ const buffer = document.createElement('canvas');
 async function init() {
     document.getElementById('startBtn').style.display = 'none';
     scanner = new Html5Qrcode("reader");
-    await scanner.start({ facingMode: "environment" }, { fps: 20 }, () => {});
-    
-    const video = document.querySelector('#reader video');
-    video.addEventListener('loadedmetadata', () => {
-        process(video);
-    });
-    // Если видео уже загружено
-    if (video.readyState >= 2) process(video);
+    try {
+        await scanner.start({ facingMode: "environment" }, { fps: 20 }, () => {});
+        const video = document.querySelector('#reader video');
+        video.onloadedmetadata = () => startProcessing(video);
+        if (video.readyState >= 2) startProcessing(video);
+    } catch (err) { alert("Ошибка камеры: " + err); }
 }
 
-function process(video) {
+function startProcessing(video) {
     const w = video.videoWidth;
     const h = video.videoHeight;
-    if (w === 0) { requestAnimationFrame(() => process(video)); return; }
-
     buffer.width = w; buffer.height = h;
     const bCtx = buffer.getContext('2d', { willReadFrequently: true });
-    
-    // Цикл обработки 5 раз в секунду
+
     setInterval(() => {
         bCtx.drawImage(video, 0, 0, w, h);
         const img = bCtx.getImageData(0, 0, w, h);
-        
-        ['R', 'G', 'B'].forEach((ch, idx) => {
+        const data = img.data;
+
+        const channelMap = { R: 0, G: 1, B: 2 };
+
+        for (const [ch, offset] of Object.entries(channelMap)) {
             const canvas = canvases[ch];
             canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
             const out = ctx.createImageData(w, h);
+            const outData = out.data;
 
-            for (let i = 0; i < img.data.length; i += 4) {
-                const val = img.data[i + idx]; // Берем R, G или B
-                out.data[i] = out.data[i+1] = out.data[i+2] = val; // В ч/б
-                out.data[i+3] = 255;
+            for (let i = 0; i < data.length; i += 4) {
+                const val = data[i + offset];
+                outData[i] = val;     // R
+                outData[i + 1] = val; // G
+                outData[i + 2] = val; // B
+                outData[i + 3] = 255; // A
             }
             ctx.putImageData(out, 0, 0);
 
-            // Попытка чтения
+            // Попытка декодирования
             Html5Qrcode.scanImage(canvas, { showFps: false })
                 .then(text => { results[ch].innerText = text; })
                 .catch(() => {});
-        });
-    }, 200); 
+        }
+    }, 200); // 5 кадров в секунду
 }
 </script>
 </body>
